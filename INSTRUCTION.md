@@ -1,47 +1,103 @@
-# ToDo App & MySQL Deployment Validation
 
-1. **Check node labels**
+# ToDo App Kubernetes Deployment Instructions
 
+This document describes how to validate the ToDo application and MySQL StatefulSet deployment in your Kubernetes cluster.
+
+## 1. Verify Nodes
+
+Check the labels on nodes:
+
+```bash
 kubectl get nodes --show-labels
-Переконайся, що нода для MySQL має label app=mysql
+```
 
-Нода для ToDo має label app=todoapp
+Check node taints:
 
-Check node taints
+```bash
+kubectl describe node <node_name>
+```
 
-bash
-Копіювати код
-kubectl describe node <mysql-node>
-Перевірити наявність app=mysql:NoSchedule
+Nodes should have:
 
-Check Pods scheduling
+* `app=mysql` label for the MySQL node
+* `app=todoapp` label for the ToDo app node
+* Taint `app=mysql:NoSchedule` applied to the MySQL node
 
-bash
-Копіювати код
+## 2. Verify Namespaces
+
+Check that the namespaces exist:
+
+```bash
+kubectl get ns
+```
+
+Expected namespaces:
+
+* `mysql`
+* `todo-app`
+
+## 3. Check Persistent Volumes and Claims
+
+Ensure PVs and PVCs are created and bound:
+
+```bash
+kubectl get pv,pvc -n todo-app
+```
+
+* The ToDo app PVC should be `Bound`.
+* Storage capacity and access modes should match specifications.
+
+## 4. Verify StatefulSet and Deployment
+
+Check pods for MySQL and ToDo app:
+
+```bash
 kubectl get pods -o wide -n mysql
 kubectl get pods -o wide -n todo-app
-Переконайся, що StatefulSet MySQL запускається на mysql-node
+```
 
-Переконайся, що Deployment ToDo App запускається на todoapp-node
+* Ensure MySQL pod is running on a node labeled `app=mysql`.
+* Ensure ToDo app pod is running on a node labeled `app=todoapp`.
+* MySQL and ToDo app pods should not be on the same node (PodAntiAffinity).
 
-Verify Pod Anti-Affinity
+## 5. Verify ConfigMap and Secret Mounts
 
-Переконайся, що MySQL поди не на одній ноді
+Check that ConfigMap is mounted properly:
 
-Переконайся, що ToDo App поди не на одній ноді
+```bash
+kubectl exec -n todo-app <todoapp_pod_name> -- ls -1 /app/configs
+```
 
-Verify app functionality
+Check that Secret is mounted with correct permissions:
 
-MySQL працює та готовий (kubectl logs <mysql-pod> -n mysql)
+```bash
+kubectl exec -n todo-app <todoapp_pod_name> -- ls -la /app/secrets
+```
 
-ToDo App працює (kubectl logs <todoapp-pod> -n todo-app)
+* Secret files should be readable only by the owner (`-r--------`).
 
-Перевірити доступ через Ingress: http://localhost
+## 6. Verify Ingress and Access
 
-Check volume mounts
+Check the ingress resource:
 
-bash
-Копіювати код
-kubectl exec -it <todoapp-pod> -n todo-app -- ls -la /app/data
-kubectl exec -it <todoapp-pod> -n todo-app -- ls -la /app/secrets
-kubectl exec -it <todoapp-pod> -n todo-app -- ls -la /app/configs
+```bash
+kubectl get ingress -n todo-app
+```
+
+Access the ToDo app in the browser:
+
+```
+http://localhost
+```
+
+* Application should load correctly.
+* No requests should fail with 404 in the console.
+
+## 7. Cleanup (Optional)
+
+To delete all resources:
+
+```bash
+kubectl delete ns mysql
+kubectl delete ns todo-app
+```
