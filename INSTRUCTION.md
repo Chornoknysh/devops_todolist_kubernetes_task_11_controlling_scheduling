@@ -1,7 +1,7 @@
 # ToDo App & MySQL Deployment Validation
 
 1. **Check node labels**
-```bash
+
 kubectl get nodes --show-labels
 Переконайся, що нода для MySQL має label app=mysql
 
